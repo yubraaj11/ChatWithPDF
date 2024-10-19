@@ -10,9 +10,9 @@ from llama_index.core.node_parser import SimpleNodeParser
 
 
 file_path = os.path.dirname(os.path.abspath(__file__))
-DB_DIR = os.path.join(file_path, '..', 'DB')
-DOCUMENT_DIR = os.path.join(file_path, '..', 'DOCUMENTS')
-NEW_DOCUMENTS_DIR = os.path.join(file_path, '..', "NEW_DOCUMENTS")
+DB_DIR = os.path.join(file_path, '..', 'db')
+DOCUMENT_DIR = os.path.join(file_path, '..', 'documents')
+NEW_DOCUMENTS_DIR = os.path.join(file_path, '..', "new_documents")
 
 
 class LlamaIndex:
@@ -22,9 +22,9 @@ class LlamaIndex:
     Attributes:
         collection_name (str): The name of the Chroma collection for storing vectors.
         device (str): The device (cpu or cuda) for running the embedding model.
-        embed_model (HuggingFaceEmbedding): The embedding model used for generating vector embeddings.
+        _embed_model (HuggingFaceEmbedding): Class variable-The embedding model used for generating vector embeddings.
     """
-
+    _embed_model = None
     def __init__(self, collection_name_) -> None:
         """
         Initializes the LlamaIndex class with the specified collection name and sets up the embedding model.
@@ -35,11 +35,12 @@ class LlamaIndex:
         self.collection_name = collection_name_
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-        self.embed_model = HuggingFaceEmbedding(
-            model_name="nomic-ai/nomic-embed-text-v1",
-            trust_remote_code=True,
-            device=self.device,
-        )
+        if LlamaIndex._embed_model is None:
+            LlamaIndex._embed_model = HuggingFaceEmbedding(
+                model_name="nomic-ai/nomic-embed-text-v1",
+                trust_remote_code=True,
+                device=self.device,
+            )
 
     @staticmethod
     def document_parser(dir_path : str) -> list[BaseNode]:
@@ -92,7 +93,7 @@ class LlamaIndex:
         # 4
         VectorStoreIndex(nodes=base_node,
                          storage_context=storage_context,
-                         embed_model=self.embed_model)
+                         embed_model=LlamaIndex._embed_model)
 
     def retrieval_index(self) -> VectorStoreIndex:
         """
@@ -112,7 +113,7 @@ class LlamaIndex:
 
         retrieval_indexer = VectorStoreIndex.from_vector_store(
             vector_store=vector_store,
-            embed_model=self.embed_model
+            embed_model=LlamaIndex._embed_model
         )
         # 2
         return retrieval_indexer
@@ -164,17 +165,3 @@ class LlamaIndex:
         query_responses = retrieval_engine.retrieve(_query)
         return query_responses
 
-
-if __name__ == "__main__":
-    query = "multi head attention"
-    collection_name = "test_123"
-
-    llama_index_obj = LlamaIndex(collection_name_=collection_name)
-
-    # llama_index_obj.index_documents()   # Only to be uncommented while we need to index the new documents
-    # llama_index_obj.insert_more_documents() # Used to insert more documents to the vectorstore folder - `NEW_DOCUMENT_DIR`
-    responses = llama_index_obj.query_response(_query=query)
-    for response in responses:
-        # print(display_source_node(response, source_length=1000))
-        print(response.text)
-        print('---' * 20)
