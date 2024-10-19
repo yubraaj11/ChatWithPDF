@@ -1,0 +1,2 @@
+llama-index
+chromadb==0.5.15
